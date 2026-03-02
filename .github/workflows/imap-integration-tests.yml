@@ -1,23 +1,26 @@
 name: IMAP Integration Tests
 
 on:
-    workflow_dispatch:
+  workflow_dispatch:
 
 jobs:
-    greenmail-tests:
-        runs-on: ubuntu-latest
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v4
+  greenmail-tests:
+    runs-on: ubuntu-latest
 
-            - name: Install Rust
-              uses: dtolnay/rust-toolchain@stable
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
 
-            - name: Run GreenMail smoke test
-              env:
-                  GREENMAIL_HOST: "localhost"
-                  GREENMAIL_SMTP_PORT: "3025"
-                  GREENMAIL_IMAP_PORT: "3143"
-                  GREENMAIL_USER: "test@localhost"
-                  GREENMAIL_PASS: "test"
-              run: scripts/test-greenmail.sh
+      - name: Install Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Run GreenMail integration tests
+        run: bash scripts/test-greenmail.sh
+
+      - name: Run MCP inspector integration tests
+        run: bash scripts/test-greenmail-mcp-inspector.sh
