@@ -255,6 +255,7 @@ pub fn truncate_chars(input: String, max_chars: usize) -> String {
 mod tests {
     use super::{curated_headers, parse_message, truncate_chars};
 
+    /// Tests that Unicode strings are truncated by character, not byte.
     #[test]
     fn truncates_unicode_by_character() {
         let input = "a😀b😀c".to_owned();
@@ -262,6 +263,7 @@ mod tests {
         assert_eq!(out, "a😀b😀");
     }
 
+    /// Tests that `curated_headers` filters headers unless `include_all` is true.
     #[test]
     fn curated_headers_filters_unless_include_all() {
         let headers = vec![
@@ -282,6 +284,7 @@ mod tests {
         assert_eq!(all.len(), 3);
     }
 
+    /// Tests parsing of a simple plain text message and verifies header and body extraction.
     #[test]
     fn parses_simple_plain_text_message() {
         let raw = b"From: sender@example.com\r\nTo: user@example.com\r\nSubject: Hi\r\nDate: Wed, 1 Jan 2025 00:00:00 +0000\r\n\r\nHello there";

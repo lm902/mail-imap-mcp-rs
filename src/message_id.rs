@@ -124,6 +124,10 @@ impl MessageId {
 mod tests {
     use super::MessageId;
 
+    /// Tests parsing and encoding of a standard message ID.
+    ///
+    /// Ensures that a typical message ID string is correctly parsed into its components,
+    /// and that encoding the struct returns the canonical string format.
     #[test]
     fn parses_and_encodes_standard_message_id() {
         let id = MessageId::parse("imap:default:INBOX:123:42").expect("parse succeeds");
@@ -134,6 +138,10 @@ mod tests {
         assert_eq!(id.encode(), "imap:default:INBOX:123:42");
     }
 
+    /// Tests parsing of a message ID with colons in the mailbox name.
+    ///
+    /// Verifies that mailbox names containing colons are handled correctly and
+    /// all segments are parsed as expected.
     #[test]
     fn parses_mailbox_with_colons() {
         let id = MessageId::parse("imap:acct:Projects:2026:Q1:999:7").expect("parse succeeds");
@@ -143,6 +151,9 @@ mod tests {
         assert_eq!(id.uid, 7);
     }
 
+    /// Tests that invalid prefixes are rejected.
+    ///
+    /// Ensures that only message IDs starting with "imap:" are accepted.
     #[test]
     fn rejects_invalid_prefix() {
         let err = MessageId::parse("smtp:default:INBOX:123:1").expect_err("must fail");

@@ -462,6 +462,7 @@ mod tests {
     };
     use crate::config::{AccountConfig, ServerConfig};
 
+    /// Holds connection details for a GreenMail test server instance.
     #[derive(Debug, Clone)]
     struct GreenmailEndpoints {
         host: String,
@@ -471,6 +472,7 @@ mod tests {
         pass: String,
     }
 
+    /// Parses a test port from the environment, falling back to a default.
     fn parse_test_port(key: &str, default: u16) -> u16 {
         std::env::var(key)
             .ok()
@@ -478,6 +480,7 @@ mod tests {
             .unwrap_or(default)
     }
 
+    /// Returns GreenmailEndpoints using environment variables or defaults.
     fn greenmail_endpoints() -> GreenmailEndpoints {
         GreenmailEndpoints {
             host: std::env::var("GREENMAIL_HOST").unwrap_or_else(|_| "localhost".to_owned()),
@@ -488,6 +491,7 @@ mod tests {
         }
     }
 
+    /// Constructs a ServerConfig for GreenMail integration tests.
     fn greenmail_test_config(endpoints: &GreenmailEndpoints) -> ServerConfig {
         let account = AccountConfig {
             account_id: "default".to_owned(),
@@ -512,6 +516,7 @@ mod tests {
         }
     }
 
+    /// Disables certificate verification for test TLS connections.
     #[derive(Debug)]
     struct NoCertificateVerification;
 
@@ -560,6 +565,7 @@ mod tests {
         }
     }
 
+    /// Connects and authenticates to the GreenMail IMAP server for integration tests.
     async fn connect_authenticated_greenmail(
         config: &ServerConfig,
     ) -> Result<super::ImapSession, String> {
@@ -609,6 +615,7 @@ mod tests {
         login.map_err(|(e, _)| format!("IMAP login failed: {e}"))
     }
 
+    /// Attempts to connect to the GreenMail IMAP port to verify server availability.
     async fn probe_greenmail_imap(endpoints: &GreenmailEndpoints) -> Result<(), String> {
         timeout(
             Duration::from_secs(1),
@@ -621,6 +628,9 @@ mod tests {
         Ok(())
     }
 
+    /// Waits until the GreenMail IMAP server is reachable and login succeeds.
+    ///
+    /// Retries for up to 60 seconds, returning an error if the server does not become ready.
     async fn wait_until_login_works(
         config: &ServerConfig,
         endpoints: &GreenmailEndpoints,
@@ -658,6 +668,9 @@ mod tests {
         ))
     }
 
+    /// Creates a mailbox if it does not already exist.
+    ///
+    /// Ignores errors if the mailbox already exists.
     async fn create_mailbox_if_missing(
         config: &ServerConfig,
         session: &mut super::ImapSession,
@@ -679,6 +692,11 @@ mod tests {
         }
     }
 
+    /// Connects to a GreenMail IMAP server and verifies basic read operations.
+    ///
+    /// This test checks that the server is reachable, login works, and
+    /// that expected mailboxes and seeded messages are present and accessible.
+    /// It also verifies fetching a known message by subject.
     #[tokio::test]
     #[ignore = "requires running GreenMail IMAP server"]
     async fn greenmail_imap_smoke_test() {
@@ -781,6 +799,12 @@ mod tests {
         );
     }
 
+    /// Exercises IMAP write-path operations against GreenMail.
+    ///
+    /// This test covers appending a message, flag updates, mailbox creation,
+    /// copying, moving, deleting, and expunging messages. It ensures that
+    /// all write operations succeed and that mailbox/message state is correct
+    /// after each operation.
     #[tokio::test]
     #[ignore = "requires running GreenMail IMAP server"]
     async fn greenmail_imap_write_paths_test() {

@@ -145,7 +145,9 @@ mod tests {
 
     use super::{CursorEntry, CursorStore};
 
-    /// Create test cursor entry
+    /// Creates a test cursor entry with the given expiration time.
+    ///
+    /// This helper is used to generate consistent test data for cursor store tests.
     fn cursor_entry(expires_at: Instant) -> CursorEntry {
         CursorEntry {
             account_id: "default".to_owned(),
@@ -159,6 +161,7 @@ mod tests {
         }
     }
 
+    /// Tests that a cursor can be created and then retrieved from the store.
     #[test]
     fn create_and_get_cursor() {
         let mut store = CursorStore::new(60, 10);
@@ -168,6 +171,9 @@ mod tests {
         assert_eq!(loaded.uids_desc.len(), 5);
     }
 
+    /// Tests updating the offset of a cursor and then deleting it.
+    ///
+    /// Verifies that the offset is updated and that deletion removes the cursor.
     #[test]
     fn update_offset_and_delete_cursor() {
         let mut store = CursorStore::new(60, 10);
@@ -180,6 +186,7 @@ mod tests {
         assert!(store.get(&id).is_none());
     }
 
+    /// Tests that cursors expire after their TTL has elapsed.
     #[test]
     fn expires_old_entries() {
         let mut store = CursorStore::new(1, 10);
@@ -188,6 +195,7 @@ mod tests {
         assert!(store.get(&id).is_none());
     }
 
+    /// Tests that accessing a cursor refreshes its TTL, preventing expiration.
     #[test]
     fn get_refreshes_cursor_ttl() {
         let mut store = CursorStore::new(1, 10);
@@ -200,6 +208,7 @@ mod tests {
         assert!(store.get(&id).is_some());
     }
 
+    /// Tests that the store evicts the oldest cursors when exceeding max_entries.
     #[test]
     fn evicts_to_max_entries() {
         let mut store = CursorStore::new(60, 2);

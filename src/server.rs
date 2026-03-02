@@ -2263,30 +2263,35 @@ fn encode_raw_source_base64(raw: &[u8]) -> String {
 }
 
 #[cfg(test)]
+/// Tests for server-side validation and encoding helpers.
 mod tests {
     use super::{
         encode_raw_source_base64, escape_imap_quoted, validate_flag, validate_mailbox,
         validate_search_text,
     };
 
+    /// Tests that control characters in search text are rejected.
     #[test]
     fn rejects_control_chars_in_search_text() {
         let err = validate_search_text("hello\nworld").expect_err("must fail");
         assert!(err.to_string().contains("control characters"));
     }
 
+    /// Tests that control characters in mailbox names are rejected.
     #[test]
     fn rejects_control_chars_in_mailbox() {
         let err = validate_mailbox("INBOX\r").expect_err("must fail");
         assert!(err.to_string().contains("control characters"));
     }
 
+    /// Tests that line breaks are rejected in IMAP quoted strings.
     #[test]
     fn escape_rejects_linebreaks() {
         let err = escape_imap_quoted("a\nb").expect_err("must fail");
         assert!(err.to_string().contains("control characters"));
     }
 
+    /// Tests that common IMAP flags are accepted.
     #[test]
     fn validate_flag_allows_common_flags() {
         validate_flag("\\Seen").expect("system flag must be valid");
@@ -2294,12 +2299,14 @@ mod tests {
         validate_flag("$MailFlagBit0").expect("keyword flag must be valid");
     }
 
+    /// Tests that injection-like flag values are rejected.
     #[test]
     fn validate_flag_rejects_injection_like_value() {
         let err = validate_flag("\\Seen) UID FETCH 1:* (BODY[]").expect_err("must fail");
         assert!(err.to_string().contains("invalid flag"));
     }
 
+    /// Tests that raw message sources are correctly base64 encoded.
     #[test]
     fn encodes_raw_source_as_base64() {
         let raw = [0_u8, 159, 255];
