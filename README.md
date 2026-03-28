@@ -25,6 +25,11 @@ Easiest method - no global install required.
 npx @bradsjm/mail-imap-mcp-rs@latest
 ```
 
+Supported npm/native targets:
+- macOS: Apple Silicon (`aarch64-apple-darwin`), Intel (`x86_64-apple-darwin`)
+- Linux x64: glibc (`x86_64-unknown-linux-gnu`), musl/Alpine (`x86_64-unknown-linux-musl`)
+- Windows x64: MSVC (`x86_64-pc-windows-msvc`)
+
 Or install globally:
 
 ```bash
@@ -62,6 +67,8 @@ Build locally:
 docker build -t mail-imap-mcp-rs .
 docker run --rm -i --env-file .env mail-imap-mcp-rs
 ```
+
+Docker remains the recommended path for Linux `arm64`, which is not part of the npm/native release matrix.
 
 ### From Source
 
