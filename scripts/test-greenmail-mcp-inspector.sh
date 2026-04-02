@@ -132,6 +132,7 @@ export MAIL_IMAP_DEFAULT_SECURE="true"
 export MAIL_IMAP_DEFAULT_USER="$GREENMAIL_USER"
 export MAIL_IMAP_DEFAULT_PASS="$GREENMAIL_PASS"
 export MAIL_IMAP_WRITE_ENABLED="true"
+export MAIL_IMAP_ALLOW_INVALID_CERTS="true"
 
 run_inspector() {
   npx --yes @modelcontextprotocol/inspector "$SERVER_BIN" --cli "$@"

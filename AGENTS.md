@@ -230,6 +230,11 @@ The repository publishes GitHub Release archives/installers via cargo-dist.
 - Update docs when behavior or bounds change.
 - If adding env vars, document them in `docs/tool-contract.md` and this file.
 
+### Added Environment Variable Notes
+
+- `MAIL_IMAP_ALLOW_INVALID_CERTS` exists for test environments only and defaults to `false`.
+- Keep TLS certificate validation enabled in production; only set this variable deliberately for self-signed integration targets.
+
 ## Quick Pre-Commit Checklist
 
 - Code formatted

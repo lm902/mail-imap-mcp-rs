@@ -575,6 +575,7 @@ mod tests {
         ServerConfig {
             accounts,
             write_enabled: true,
+            allow_invalid_certs: false,
             connect_timeout_ms: 5_000,
             greeting_timeout_ms: 5_000,
             socket_timeout_ms: 15_000,
