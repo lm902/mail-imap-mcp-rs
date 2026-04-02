@@ -495,10 +495,23 @@ impl MailImapServer {
         let mailboxes = items
             .into_iter()
             .take(200)
-            .map(|item| MailboxInfo {
-                name: mailbox_codec::decode_mailbox_name(item.name())
-                    .unwrap_or_else(|_| item.name().to_owned()),
-                delimiter: item.delimiter().map(|d| d.to_string()),
+            .map(|item| {
+                let raw_name = item.name();
+                let name = match mailbox_codec::decode_mailbox_name(raw_name) {
+                    Ok(decoded) => decoded,
+                    Err(error) => {
+                        warn!(
+                            mailbox = raw_name,
+                            error = %error,
+                            "failed to decode mailbox name; using wire value"
+                        );
+                        raw_name.to_owned()
+                    }
+                };
+                MailboxInfo {
+                    name,
+                    delimiter: item.delimiter().map(|d| d.to_string()),
+                }
             })
             .collect::<Vec<_>>();
 
@@ -1811,7 +1824,7 @@ where
 /// Parse message_id, validate mailbox, and enforce account_id match.
 fn parse_and_validate_message_id(account_id: &str, message_id: &str) -> AppResult<MessageId> {
     let mut msg_id = MessageId::parse(message_id)?;
-    msg_id.mailbox = mailbox_codec::normalize_mailbox_name(&msg_id.mailbox);
+    msg_id.mailbox = mailbox_codec::normalize_mailbox_name(msg_id.mailbox);
     validate_mailbox(&msg_id.mailbox)?;
     if msg_id.account_id != account_id {
         return Err(AppError::InvalidInput(
@@ -2137,10 +2150,10 @@ fn validate_search_text(input: &str) -> AppResult<()> {
 /// Build IMAP SEARCH query string from input
 fn build_search_query(input: &SearchMessagesInput) -> AppResult<String> {
     let mut parts = Vec::new();
-    let has_non_ascii = [&input.query, &input.from, &input.to, &input.subject]
-        .iter()
-        .filter_map(|v| v.as_deref())
-        .any(|v| !v.is_ascii());
+    let has_non_ascii = input.query.as_deref().is_some_and(|v| !v.is_ascii())
+        || input.from.as_deref().is_some_and(|v| !v.is_ascii())
+        || input.to.as_deref().is_some_and(|v| !v.is_ascii())
+        || input.subject.as_deref().is_some_and(|v| !v.is_ascii());
     if has_non_ascii {
         parts.push("CHARSET UTF-8".to_owned());
     }
