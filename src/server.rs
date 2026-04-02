@@ -18,6 +18,7 @@ use tracing::{error, warn};
 use crate::config::ServerConfig;
 use crate::errors::{AppError, AppResult};
 use crate::imap;
+use crate::mailbox_codec;
 use crate::message_id::MessageId;
 use crate::mime;
 use crate::models::{
@@ -491,14 +492,29 @@ impl MailImapServer {
             }
         };
 
-        let mailboxes = items
-            .into_iter()
-            .take(200)
-            .map(|item| MailboxInfo {
-                name: item.name().to_owned(),
-                delimiter: item.delimiter().map(|d| d.to_string()),
-            })
-            .collect::<Vec<_>>();
+        let mut mailboxes = Vec::new();
+        for item in items.into_iter().take(200) {
+            let raw_name = item.name();
+            match mailbox_codec::decode_mailbox_name(raw_name) {
+                Ok(name) => mailboxes.push(MailboxInfo {
+                    name,
+                    delimiter: item.delimiter().map(|d| d.to_string()),
+                }),
+                Err(error) => {
+                    issues.push(ToolIssue::from_error(
+                        "decode_mailbox_name",
+                        &AppError::Internal(format!(
+                            "cannot decode mailbox name '{raw_name}': {error}"
+                        )),
+                    ));
+                    warn!(
+                        mailbox = raw_name,
+                        error = %error,
+                        "failed to decode mailbox name; omitting mailbox"
+                    );
+                }
+            }
+        }
 
         let status = status_from_counts(issues.is_empty(), !mailboxes.is_empty());
         log_runtime_issues(
@@ -1808,7 +1824,8 @@ where
 
 /// Parse message_id, validate mailbox, and enforce account_id match.
 fn parse_and_validate_message_id(account_id: &str, message_id: &str) -> AppResult<MessageId> {
-    let msg_id = MessageId::parse(message_id)?;
+    let mut msg_id = MessageId::parse(message_id)?;
+    msg_id.mailbox = mailbox_codec::normalize_mailbox_name(msg_id.mailbox);
     validate_mailbox(&msg_id.mailbox)?;
     if msg_id.account_id != account_id {
         return Err(AppError::InvalidInput(
@@ -2134,6 +2151,13 @@ fn validate_search_text(input: &str) -> AppResult<()> {
 /// Build IMAP SEARCH query string from input
 fn build_search_query(input: &SearchMessagesInput) -> AppResult<String> {
     let mut parts = Vec::new();
+    let has_non_ascii = input.query.as_deref().is_some_and(|v| !v.is_ascii())
+        || input.from.as_deref().is_some_and(|v| !v.is_ascii())
+        || input.to.as_deref().is_some_and(|v| !v.is_ascii())
+        || input.subject.as_deref().is_some_and(|v| !v.is_ascii());
+    if has_non_ascii {
+        parts.push("CHARSET UTF-8".to_owned());
+    }
     if let Some(v) = &input.query {
         parts.push(format!("TEXT \"{}\"", escape_imap_quoted(v)?));
     }
@@ -2266,9 +2290,10 @@ fn encode_raw_source_base64(raw: &[u8]) -> String {
 /// Tests for server-side validation and encoding helpers.
 mod tests {
     use super::{
-        encode_raw_source_base64, escape_imap_quoted, validate_flag, validate_mailbox,
-        validate_search_text,
+        build_search_query, encode_raw_source_base64, escape_imap_quoted, validate_flag,
+        validate_mailbox, validate_search_text,
     };
+    use crate::models::SearchMessagesInput;
 
     /// Tests that control characters in search text are rejected.
     #[test]
@@ -2311,5 +2336,51 @@ mod tests {
     fn encodes_raw_source_as_base64() {
         let raw = [0_u8, 159, 255];
         assert_eq!(encode_raw_source_base64(&raw), "AJ//");
+    }
+
+    #[test]
+    fn build_search_query_adds_charset_for_non_ascii_fields() {
+        let input = SearchMessagesInput {
+            account_id: "default".to_owned(),
+            mailbox: "INBOX".to_owned(),
+            cursor: None,
+            query: None,
+            from: None,
+            to: None,
+            subject: Some("旅行".to_owned()),
+            unread_only: None,
+            last_days: None,
+            start_date: None,
+            end_date: None,
+            limit: 10,
+            include_snippet: false,
+            snippet_max_chars: None,
+        };
+        let query = build_search_query(&input).expect("query builds");
+        assert!(query.starts_with("CHARSET UTF-8 "));
+        assert!(query.contains("SUBJECT \"旅行\""));
+    }
+
+    #[test]
+    fn build_search_query_omits_charset_for_ascii_fields() {
+        let input = SearchMessagesInput {
+            account_id: "default".to_owned(),
+            mailbox: "INBOX".to_owned(),
+            cursor: None,
+            query: Some("invoice".to_owned()),
+            from: None,
+            to: None,
+            subject: None,
+            unread_only: None,
+            last_days: None,
+            start_date: None,
+            end_date: None,
+            limit: 10,
+            include_snippet: false,
+            snippet_max_chars: None,
+        };
+        let query = build_search_query(&input).expect("query builds");
+        assert!(!query.starts_with("CHARSET UTF-8 "));
+        assert_eq!(query, "TEXT \"invoice\"");
     }
 }

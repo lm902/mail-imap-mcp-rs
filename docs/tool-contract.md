@@ -24,6 +24,8 @@ It is the source of truth for tool names, input/output shapes, validation bounds
 
 - Type: string
 - Length: 1..256
+- API contract: mailbox names are UTF-8 normalized in tool inputs/outputs.
+- Server behavior: mailbox names are encoded to IMAP modified UTF-7 on wire commands and decoded back to UTF-8 for responses.
 
 ### `message_id`
 
@@ -124,6 +126,7 @@ Output `data`:
 - `next_action`: `{ instruction, tool, arguments }`
 - `account_id`
 - `mailboxes`: array (max 200) of `{ name, delimiter? }`
+  - `name` is UTF-8 normalized.
 
 ### 4) `imap_search_messages`
 
@@ -153,6 +156,7 @@ Validation:
 - `start_date <= end_date`.
 - Search text fields and mailbox values must not contain ASCII control characters.
 - Searches matching more than 20,000 messages are rejected; narrow filters and retry.
+- Non-ASCII text in `query/from/to/subject` is sent using `CHARSET UTF-8` in IMAP `SEARCH`.
 
 Output `data`:
 - `status`: `ok|partial|failed`
