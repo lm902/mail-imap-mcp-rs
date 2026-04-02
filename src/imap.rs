@@ -33,6 +33,54 @@ fn socket_timeout(server: &ServerConfig) -> Duration {
     Duration::from_millis(server.socket_timeout_ms)
 }
 
+#[derive(Debug)]
+struct NoCertificateVerification;
+
+impl rustls::client::danger::ServerCertVerifier for NoCertificateVerification {
+    fn verify_server_cert(
+        &self,
+        _end_entity: &rustls::pki_types::CertificateDer<'_>,
+        _intermediates: &[rustls::pki_types::CertificateDer<'_>],
+        _server_name: &ServerName<'_>,
+        _ocsp_response: &[u8],
+        _now: rustls::pki_types::UnixTime,
+    ) -> Result<rustls::client::danger::ServerCertVerified, rustls::Error> {
+        Ok(rustls::client::danger::ServerCertVerified::assertion())
+    }
+
+    fn verify_tls12_signature(
+        &self,
+        _message: &[u8],
+        _cert: &rustls::pki_types::CertificateDer<'_>,
+        _dss: &rustls::DigitallySignedStruct,
+    ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
+        Ok(rustls::client::danger::HandshakeSignatureValid::assertion())
+    }
+
+    fn verify_tls13_signature(
+        &self,
+        _message: &[u8],
+        _cert: &rustls::pki_types::CertificateDer<'_>,
+        _dss: &rustls::DigitallySignedStruct,
+    ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
+        Ok(rustls::client::danger::HandshakeSignatureValid::assertion())
+    }
+
+    fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
+        vec![
+            rustls::SignatureScheme::ECDSA_NISTP256_SHA256,
+            rustls::SignatureScheme::ECDSA_NISTP384_SHA384,
+            rustls::SignatureScheme::ED25519,
+            rustls::SignatureScheme::RSA_PSS_SHA256,
+            rustls::SignatureScheme::RSA_PSS_SHA384,
+            rustls::SignatureScheme::RSA_PSS_SHA512,
+            rustls::SignatureScheme::RSA_PKCS1_SHA256,
+            rustls::SignatureScheme::RSA_PKCS1_SHA384,
+            rustls::SignatureScheme::RSA_PKCS1_SHA512,
+        ]
+    }
+}
+
 /// Connect to IMAP server and authenticate
 ///
 /// Performs full connection sequence with timeouts:
@@ -79,11 +127,18 @@ pub async fn connect_authenticated(
     .map_err(|_| AppError::Timeout("tcp connect timeout".to_owned()))
     .and_then(|r| r.map_err(|e| AppError::Internal(format!("tcp connect failed: {e}"))))?;
 
-    let mut roots = RootCertStore::empty();
-    roots.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
-    let tls_config = ClientConfig::builder()
-        .with_root_certificates(roots)
-        .with_no_client_auth();
+    let tls_config = if server.allow_invalid_certs {
+        ClientConfig::builder()
+            .dangerous()
+            .with_custom_certificate_verifier(Arc::new(NoCertificateVerification))
+            .with_no_client_auth()
+    } else {
+        let mut roots = RootCertStore::empty();
+        roots.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
+        ClientConfig::builder()
+            .with_root_certificates(roots)
+            .with_no_client_auth()
+    };
     let connector = TlsConnector::from(Arc::new(tls_config));
 
     let server_name = ServerName::try_from(account.host.clone())
