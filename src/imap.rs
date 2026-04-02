@@ -33,13 +33,59 @@ fn socket_timeout(server: &ServerConfig) -> Duration {
     Duration::from_millis(server.socket_timeout_ms)
 }
 
+#[derive(Debug)]
+struct NoCertificateVerification;
+
+impl rustls::client::danger::ServerCertVerifier for NoCertificateVerification {
+    fn verify_server_cert(
+        &self,
+        _end_entity: &rustls::pki_types::CertificateDer<'_>,
+        _intermediates: &[rustls::pki_types::CertificateDer<'_>],
+        _server_name: &ServerName<'_>,
+        _ocsp_response: &[u8],
+        _now: rustls::pki_types::UnixTime,
+    ) -> Result<rustls::client::danger::ServerCertVerified, rustls::Error> {
+        Ok(rustls::client::danger::ServerCertVerified::assertion())
+    }
+
+    fn verify_tls12_signature(
+        &self,
+        _message: &[u8],
+        _cert: &rustls::pki_types::CertificateDer<'_>,
+        _dss: &rustls::DigitallySignedStruct,
+    ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
+        Ok(rustls::client::danger::HandshakeSignatureValid::assertion())
+    }
+
+    fn verify_tls13_signature(
+        &self,
+        _message: &[u8],
+        _cert: &rustls::pki_types::CertificateDer<'_>,
+        _dss: &rustls::DigitallySignedStruct,
+    ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
+        Ok(rustls::client::danger::HandshakeSignatureValid::assertion())
+    }
+
+    fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
+        ClientConfig::builder()
+            .crypto_provider()
+            .signature_verification_algorithms
+            .supported_schemes()
+    }
+}
+
 /// Connect to IMAP server and authenticate
 ///
 /// Performs full connection sequence with timeouts:
 /// 1. TCP connect
-/// 2. TLS handshake with system root certificates
+/// 2. TLS handshake
 /// 3. Read IMAP greeting
 /// 4. LOGIN authentication
+///
+/// TLS verification behavior:
+/// - Default: validates certificate chain and hostname using bundled roots
+/// - If `MAIL_IMAP_ALLOW_INVALID_CERTS=true`: uses a test-only verifier that
+///   accepts invalid/self-signed certificates
 ///
 /// # Security
 ///
@@ -79,11 +125,21 @@ pub async fn connect_authenticated(
     .map_err(|_| AppError::Timeout("tcp connect timeout".to_owned()))
     .and_then(|r| r.map_err(|e| AppError::Internal(format!("tcp connect failed: {e}"))))?;
 
-    let mut roots = RootCertStore::empty();
-    roots.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
-    let tls_config = ClientConfig::builder()
-        .with_root_certificates(roots)
-        .with_no_client_auth();
+    let tls_config = if server.allow_invalid_certs {
+        tracing::warn!(
+            "MAIL_IMAP_ALLOW_INVALID_CERTS=true; TLS certificate and hostname verification are disabled for this IMAP connection"
+        );
+        ClientConfig::builder()
+            .dangerous()
+            .with_custom_certificate_verifier(Arc::new(NoCertificateVerification))
+            .with_no_client_auth()
+    } else {
+        let mut roots = RootCertStore::empty();
+        roots.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
+        ClientConfig::builder()
+            .with_root_certificates(roots)
+            .with_no_client_auth()
+    };
     let connector = TlsConnector::from(Arc::new(tls_config));
 
     let server_name = ServerName::try_from(account.host.clone())
@@ -458,9 +514,8 @@ mod tests {
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
     use async_imap::Client;
-    use rustls::client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier};
-    use rustls::pki_types::{CertificateDer, ServerName, UnixTime};
-    use rustls::{ClientConfig, DigitallySignedStruct, Error as RustlsError, SignatureScheme};
+    use rustls::ClientConfig;
+    use rustls::pki_types::ServerName;
     use secrecy::{ExposeSecret, SecretString};
     use tokio::net::TcpStream;
     use tokio::time::sleep;
@@ -468,9 +523,9 @@ mod tests {
     use tokio_rustls::TlsConnector;
 
     use super::{
-        append, fetch_flags, fetch_raw_message, list_all_mailboxes, noop, select_mailbox_readonly,
-        select_mailbox_readwrite, socket_timeout, uid_copy, uid_expunge, uid_move, uid_search,
-        uid_store,
+        NoCertificateVerification, append, fetch_flags, fetch_raw_message, list_all_mailboxes,
+        noop, select_mailbox_readonly, select_mailbox_readwrite, socket_timeout, uid_copy,
+        uid_expunge, uid_move, uid_search, uid_store,
     };
     use crate::config::{AccountConfig, ServerConfig};
 
@@ -520,60 +575,12 @@ mod tests {
         ServerConfig {
             accounts,
             write_enabled: true,
+            allow_invalid_certs: false,
             connect_timeout_ms: 5_000,
             greeting_timeout_ms: 5_000,
             socket_timeout_ms: 15_000,
             cursor_ttl_seconds: 600,
             cursor_max_entries: 128,
-        }
-    }
-
-    /// Disables certificate verification for test TLS connections.
-    #[derive(Debug)]
-    struct NoCertificateVerification;
-
-    impl ServerCertVerifier for NoCertificateVerification {
-        fn verify_server_cert(
-            &self,
-            _end_entity: &CertificateDer<'_>,
-            _intermediates: &[CertificateDer<'_>],
-            _server_name: &ServerName<'_>,
-            _ocsp_response: &[u8],
-            _now: UnixTime,
-        ) -> Result<ServerCertVerified, RustlsError> {
-            Ok(ServerCertVerified::assertion())
-        }
-
-        fn verify_tls12_signature(
-            &self,
-            _message: &[u8],
-            _cert: &CertificateDer<'_>,
-            _dss: &DigitallySignedStruct,
-        ) -> Result<HandshakeSignatureValid, RustlsError> {
-            Ok(HandshakeSignatureValid::assertion())
-        }
-
-        fn verify_tls13_signature(
-            &self,
-            _message: &[u8],
-            _cert: &CertificateDer<'_>,
-            _dss: &DigitallySignedStruct,
-        ) -> Result<HandshakeSignatureValid, RustlsError> {
-            Ok(HandshakeSignatureValid::assertion())
-        }
-
-        fn supported_verify_schemes(&self) -> Vec<SignatureScheme> {
-            vec![
-                SignatureScheme::ECDSA_NISTP256_SHA256,
-                SignatureScheme::ECDSA_NISTP384_SHA384,
-                SignatureScheme::ED25519,
-                SignatureScheme::RSA_PSS_SHA256,
-                SignatureScheme::RSA_PSS_SHA384,
-                SignatureScheme::RSA_PSS_SHA512,
-                SignatureScheme::RSA_PKCS1_SHA256,
-                SignatureScheme::RSA_PKCS1_SHA384,
-                SignatureScheme::RSA_PKCS1_SHA512,
-            ]
         }
     }
 

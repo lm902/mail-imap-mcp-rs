@@ -132,6 +132,7 @@ export MAIL_IMAP_DEFAULT_SECURE="true"
 export MAIL_IMAP_DEFAULT_USER="$GREENMAIL_USER"
 export MAIL_IMAP_DEFAULT_PASS="$GREENMAIL_PASS"
 export MAIL_IMAP_WRITE_ENABLED="true"
+export MAIL_IMAP_ALLOW_INVALID_CERTS="true"
 
 run_inspector() {
   npx --yes @modelcontextprotocol/inspector "$SERVER_BIN" --cli "$@"
@@ -234,8 +235,8 @@ printf '%s\n' "$GET_JSON" | jq -e '
   (.structuredContent.data // .data) as $data
   | (.isError != true)
     and ($data.status == "ok")
-    and ($data.message_id != null)
-    and ($data.subject != null)
+    and ($data.message.message_id != null)
+    and ($data.message.subject != null)
 ' >/dev/null
 
 echo "Checking imap_get_message_raw"

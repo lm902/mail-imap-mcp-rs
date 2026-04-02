@@ -361,6 +361,7 @@ Per account:
 Server-wide:
 
 - `MAIL_IMAP_WRITE_ENABLED` (default `false`)
+- `MAIL_IMAP_ALLOW_INVALID_CERTS` (default `false`, dangerous, test-only)
 - `MAIL_IMAP_CONNECT_TIMEOUT_MS` (default `30000`)
 - `MAIL_IMAP_GREETING_TIMEOUT_MS` (default `15000`)
 - `MAIL_IMAP_SOCKET_TIMEOUT_MS` (default `300000`)
