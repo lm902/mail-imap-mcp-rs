@@ -67,17 +67,10 @@ impl rustls::client::danger::ServerCertVerifier for NoCertificateVerification {
     }
 
     fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
-        vec![
-            rustls::SignatureScheme::ECDSA_NISTP256_SHA256,
-            rustls::SignatureScheme::ECDSA_NISTP384_SHA384,
-            rustls::SignatureScheme::ED25519,
-            rustls::SignatureScheme::RSA_PSS_SHA256,
-            rustls::SignatureScheme::RSA_PSS_SHA384,
-            rustls::SignatureScheme::RSA_PSS_SHA512,
-            rustls::SignatureScheme::RSA_PKCS1_SHA256,
-            rustls::SignatureScheme::RSA_PKCS1_SHA384,
-            rustls::SignatureScheme::RSA_PKCS1_SHA512,
-        ]
+        ClientConfig::builder()
+            .crypto_provider()
+            .signature_verification_algorithms
+            .supported_schemes()
     }
 }
 
@@ -133,6 +126,9 @@ pub async fn connect_authenticated(
     .and_then(|r| r.map_err(|e| AppError::Internal(format!("tcp connect failed: {e}"))))?;
 
     let tls_config = if server.allow_invalid_certs {
+        tracing::warn!(
+            "MAIL_IMAP_ALLOW_INVALID_CERTS=true; TLS certificate and hostname verification are disabled for this IMAP connection"
+        );
         ClientConfig::builder()
             .dangerous()
             .with_custom_certificate_verifier(Arc::new(NoCertificateVerification))
@@ -518,9 +514,8 @@ mod tests {
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
     use async_imap::Client;
-    use rustls::client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier};
-    use rustls::pki_types::{CertificateDer, ServerName, UnixTime};
-    use rustls::{ClientConfig, DigitallySignedStruct, Error as RustlsError, SignatureScheme};
+    use rustls::ClientConfig;
+    use rustls::pki_types::ServerName;
     use secrecy::{ExposeSecret, SecretString};
     use tokio::net::TcpStream;
     use tokio::time::sleep;
@@ -528,9 +523,9 @@ mod tests {
     use tokio_rustls::TlsConnector;
 
     use super::{
-        append, fetch_flags, fetch_raw_message, list_all_mailboxes, noop, select_mailbox_readonly,
-        select_mailbox_readwrite, socket_timeout, uid_copy, uid_expunge, uid_move, uid_search,
-        uid_store,
+        NoCertificateVerification, append, fetch_flags, fetch_raw_message, list_all_mailboxes,
+        noop, select_mailbox_readonly, select_mailbox_readwrite, socket_timeout, uid_copy,
+        uid_expunge, uid_move, uid_search, uid_store,
     };
     use crate::config::{AccountConfig, ServerConfig};
 
@@ -586,55 +581,6 @@ mod tests {
             socket_timeout_ms: 15_000,
             cursor_ttl_seconds: 600,
             cursor_max_entries: 128,
-        }
-    }
-
-    /// Disables certificate verification for test TLS connections.
-    #[derive(Debug)]
-    struct NoCertificateVerification;
-
-    impl ServerCertVerifier for NoCertificateVerification {
-        fn verify_server_cert(
-            &self,
-            _end_entity: &CertificateDer<'_>,
-            _intermediates: &[CertificateDer<'_>],
-            _server_name: &ServerName<'_>,
-            _ocsp_response: &[u8],
-            _now: UnixTime,
-        ) -> Result<ServerCertVerified, RustlsError> {
-            Ok(ServerCertVerified::assertion())
-        }
-
-        fn verify_tls12_signature(
-            &self,
-            _message: &[u8],
-            _cert: &CertificateDer<'_>,
-            _dss: &DigitallySignedStruct,
-        ) -> Result<HandshakeSignatureValid, RustlsError> {
-            Ok(HandshakeSignatureValid::assertion())
-        }
-
-        fn verify_tls13_signature(
-            &self,
-            _message: &[u8],
-            _cert: &CertificateDer<'_>,
-            _dss: &DigitallySignedStruct,
-        ) -> Result<HandshakeSignatureValid, RustlsError> {
-            Ok(HandshakeSignatureValid::assertion())
-        }
-
-        fn supported_verify_schemes(&self) -> Vec<SignatureScheme> {
-            vec![
-                SignatureScheme::ECDSA_NISTP256_SHA256,
-                SignatureScheme::ECDSA_NISTP384_SHA384,
-                SignatureScheme::ED25519,
-                SignatureScheme::RSA_PSS_SHA256,
-                SignatureScheme::RSA_PSS_SHA384,
-                SignatureScheme::RSA_PSS_SHA512,
-                SignatureScheme::RSA_PKCS1_SHA256,
-                SignatureScheme::RSA_PKCS1_SHA384,
-                SignatureScheme::RSA_PKCS1_SHA512,
-            ]
         }
     }
 
