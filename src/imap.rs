@@ -19,6 +19,7 @@ use tokio_rustls::TlsConnector;
 
 use crate::config::{AccountConfig, ServerConfig};
 use crate::errors::{AppError, AppResult};
+use crate::mailbox_codec;
 
 /// Type alias for authenticated IMAP session over TLS
 ///
@@ -174,7 +175,8 @@ pub async fn select_mailbox_readonly(
     session: &mut ImapSession,
     mailbox: &str,
 ) -> AppResult<u32> {
-    let selected = timeout(socket_timeout(server), session.examine(mailbox))
+    let wire_mailbox = mailbox_codec::encode_mailbox_name(mailbox)?;
+    let selected = timeout(socket_timeout(server), session.examine(wire_mailbox.as_str()))
         .await
         .map_err(|_| AppError::Timeout(format!("EXAMINE timed out for mailbox '{mailbox}'")))
         .and_then(|r| {
@@ -194,7 +196,8 @@ pub async fn select_mailbox_readwrite(
     session: &mut ImapSession,
     mailbox: &str,
 ) -> AppResult<u32> {
-    let selected = timeout(socket_timeout(server), session.select(mailbox))
+    let wire_mailbox = mailbox_codec::encode_mailbox_name(mailbox)?;
+    let selected = timeout(socket_timeout(server), session.select(wire_mailbox.as_str()))
         .await
         .map_err(|_| AppError::Timeout(format!("SELECT timed out for mailbox '{mailbox}'")))
         .and_then(|r| {
@@ -371,9 +374,10 @@ pub async fn uid_copy(
     uid: u32,
     mailbox: &str,
 ) -> AppResult<()> {
+    let wire_mailbox = mailbox_codec::encode_mailbox_name(mailbox)?;
     timeout(
         socket_timeout(server),
-        session.uid_copy(uid.to_string(), mailbox),
+        session.uid_copy(uid.to_string(), wire_mailbox.as_str()),
     )
     .await
     .map_err(|_| AppError::Timeout("UID COPY timed out".to_owned()))
@@ -390,9 +394,10 @@ pub async fn uid_move(
     uid: u32,
     mailbox: &str,
 ) -> AppResult<()> {
+    let wire_mailbox = mailbox_codec::encode_mailbox_name(mailbox)?;
     timeout(
         socket_timeout(server),
-        session.uid_mv(uid.to_string(), mailbox),
+        session.uid_mv(uid.to_string(), wire_mailbox.as_str()),
     )
     .await
     .map_err(|_| AppError::Timeout("UID MOVE timed out".to_owned()))
@@ -430,9 +435,10 @@ pub async fn append(
     mailbox: &str,
     content: &[u8],
 ) -> AppResult<()> {
+    let wire_mailbox = mailbox_codec::encode_mailbox_name(mailbox)?;
     timeout(
         socket_timeout(server),
-        session.append(mailbox, None, None, content),
+        session.append(wire_mailbox.as_str(), None, None, content),
     )
     .await
     .map_err(|_| AppError::Timeout("APPEND timed out".to_owned()))

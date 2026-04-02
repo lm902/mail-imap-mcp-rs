@@ -18,6 +18,7 @@ use tracing::{error, warn};
 use crate::config::ServerConfig;
 use crate::errors::{AppError, AppResult};
 use crate::imap;
+use crate::mailbox_codec;
 use crate::message_id::MessageId;
 use crate::mime;
 use crate::models::{
@@ -495,7 +496,8 @@ impl MailImapServer {
             .into_iter()
             .take(200)
             .map(|item| MailboxInfo {
-                name: item.name().to_owned(),
+                name: mailbox_codec::decode_mailbox_name(item.name())
+                    .unwrap_or_else(|_| item.name().to_owned()),
                 delimiter: item.delimiter().map(|d| d.to_string()),
             })
             .collect::<Vec<_>>();
@@ -1808,7 +1810,8 @@ where
 
 /// Parse message_id, validate mailbox, and enforce account_id match.
 fn parse_and_validate_message_id(account_id: &str, message_id: &str) -> AppResult<MessageId> {
-    let msg_id = MessageId::parse(message_id)?;
+    let mut msg_id = MessageId::parse(message_id)?;
+    msg_id.mailbox = mailbox_codec::normalize_mailbox_name(&msg_id.mailbox);
     validate_mailbox(&msg_id.mailbox)?;
     if msg_id.account_id != account_id {
         return Err(AppError::InvalidInput(
@@ -2134,6 +2137,17 @@ fn validate_search_text(input: &str) -> AppResult<()> {
 /// Build IMAP SEARCH query string from input
 fn build_search_query(input: &SearchMessagesInput) -> AppResult<String> {
     let mut parts = Vec::new();
+    let has_non_ascii = input
+        .query
+        .as_deref()
+        .or(input.from.as_deref())
+        .or(input.to.as_deref())
+        .or(input.subject.as_deref())
+        .map(|value| !value.is_ascii())
+        .unwrap_or(false);
+    if has_non_ascii {
+        parts.push("CHARSET UTF-8".to_owned());
+    }
     if let Some(v) = &input.query {
         parts.push(format!("TEXT \"{}\"", escape_imap_quoted(v)?));
     }
