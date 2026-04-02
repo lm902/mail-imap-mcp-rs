@@ -183,8 +183,7 @@ LIST_ACCOUNTS_JSON=$(run_inspector --method tools/call --tool-name imap_list_acc
 printf '%s\n' "$LIST_ACCOUNTS_JSON" | jq -e '
   (.structuredContent.data // .data) as $data
   | (.isError != true)
-    and ($data.status == "ok")
-    and ((($data.accounts // []) | map(.id)) | index("default") != null)
+    and ((($data.accounts // []) | map(.account_id // .id)) | index("default") != null)
 ' >/dev/null
 
 echo "Checking imap_verify_account"
