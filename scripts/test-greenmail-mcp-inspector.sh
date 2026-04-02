@@ -235,8 +235,8 @@ printf '%s\n' "$GET_JSON" | jq -e '
   (.structuredContent.data // .data) as $data
   | (.isError != true)
     and ($data.status == "ok")
-    and ($data.message_id != null)
-    and ($data.subject != null)
+    and ($data.message.message_id != null)
+    and ($data.message.subject != null)
 ' >/dev/null
 
 echo "Checking imap_get_message_raw"
