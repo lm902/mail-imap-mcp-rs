@@ -2137,14 +2137,10 @@ fn validate_search_text(input: &str) -> AppResult<()> {
 /// Build IMAP SEARCH query string from input
 fn build_search_query(input: &SearchMessagesInput) -> AppResult<String> {
     let mut parts = Vec::new();
-    let has_non_ascii = input
-        .query
-        .as_deref()
-        .or(input.from.as_deref())
-        .or(input.to.as_deref())
-        .or(input.subject.as_deref())
-        .map(|value| !value.is_ascii())
-        .unwrap_or(false);
+    let has_non_ascii = [&input.query, &input.from, &input.to, &input.subject]
+        .iter()
+        .filter_map(|v| v.as_deref())
+        .any(|v| !v.is_ascii());
     if has_non_ascii {
         parts.push("CHARSET UTF-8".to_owned());
     }
@@ -2280,9 +2276,10 @@ fn encode_raw_source_base64(raw: &[u8]) -> String {
 /// Tests for server-side validation and encoding helpers.
 mod tests {
     use super::{
-        encode_raw_source_base64, escape_imap_quoted, validate_flag, validate_mailbox,
-        validate_search_text,
+        build_search_query, encode_raw_source_base64, escape_imap_quoted, validate_flag,
+        validate_mailbox, validate_search_text,
     };
+    use crate::models::SearchMessagesInput;
 
     /// Tests that control characters in search text are rejected.
     #[test]
@@ -2325,5 +2322,51 @@ mod tests {
     fn encodes_raw_source_as_base64() {
         let raw = [0_u8, 159, 255];
         assert_eq!(encode_raw_source_base64(&raw), "AJ//");
+    }
+
+    #[test]
+    fn build_search_query_adds_charset_for_non_ascii_fields() {
+        let input = SearchMessagesInput {
+            account_id: "default".to_owned(),
+            mailbox: "INBOX".to_owned(),
+            cursor: None,
+            query: None,
+            from: None,
+            to: None,
+            subject: Some("旅行".to_owned()),
+            unread_only: None,
+            last_days: None,
+            start_date: None,
+            end_date: None,
+            limit: 10,
+            include_snippet: false,
+            snippet_max_chars: None,
+        };
+        let query = build_search_query(&input).expect("query builds");
+        assert!(query.starts_with("CHARSET UTF-8 "));
+        assert!(query.contains("SUBJECT \"旅行\""));
+    }
+
+    #[test]
+    fn build_search_query_omits_charset_for_ascii_fields() {
+        let input = SearchMessagesInput {
+            account_id: "default".to_owned(),
+            mailbox: "INBOX".to_owned(),
+            cursor: None,
+            query: Some("invoice".to_owned()),
+            from: None,
+            to: None,
+            subject: None,
+            unread_only: None,
+            last_days: None,
+            start_date: None,
+            end_date: None,
+            limit: 10,
+            include_snippet: false,
+            snippet_max_chars: None,
+        };
+        let query = build_search_query(&input).expect("query builds");
+        assert!(!query.starts_with("CHARSET UTF-8 "));
+        assert_eq!(query, "TEXT \"invoice\"");
     }
 }

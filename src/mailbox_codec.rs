@@ -35,6 +35,9 @@ pub fn encode_mailbox_name(input: &str) -> AppResult<String> {
 
 /// Decode IMAP modified UTF-7 wire-format mailbox name to UTF-8.
 pub fn decode_mailbox_name(input: &str) -> AppResult<String> {
+    if !input.is_ascii() {
+        return Ok(input.to_owned());
+    }
     let bytes = input.as_bytes();
     let mut i = 0usize;
     let mut out = String::with_capacity(input.len());
@@ -133,7 +136,10 @@ mod tests {
 
     #[test]
     fn encodes_ascii_passthrough() {
-        assert_eq!(encode_mailbox_name("INBOX/Archive").expect("encode"), "INBOX/Archive");
+        assert_eq!(
+            encode_mailbox_name("INBOX/Archive").expect("encode"),
+            "INBOX/Archive"
+        );
     }
 
     #[test]

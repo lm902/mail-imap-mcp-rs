@@ -176,12 +176,15 @@ pub async fn select_mailbox_readonly(
     mailbox: &str,
 ) -> AppResult<u32> {
     let wire_mailbox = mailbox_codec::encode_mailbox_name(mailbox)?;
-    let selected = timeout(socket_timeout(server), session.examine(wire_mailbox.as_str()))
-        .await
-        .map_err(|_| AppError::Timeout(format!("EXAMINE timed out for mailbox '{mailbox}'")))
-        .and_then(|r| {
-            r.map_err(|e| AppError::NotFound(format!("cannot examine mailbox '{mailbox}': {e}")))
-        })?;
+    let selected = timeout(
+        socket_timeout(server),
+        session.examine(wire_mailbox.as_str()),
+    )
+    .await
+    .map_err(|_| AppError::Timeout(format!("EXAMINE timed out for mailbox '{mailbox}'")))
+    .and_then(|r| {
+        r.map_err(|e| AppError::NotFound(format!("cannot examine mailbox '{mailbox}': {e}")))
+    })?;
     selected
         .uid_validity
         .ok_or_else(|| AppError::Internal("mailbox missing UIDVALIDITY".to_owned()))
@@ -197,12 +200,15 @@ pub async fn select_mailbox_readwrite(
     mailbox: &str,
 ) -> AppResult<u32> {
     let wire_mailbox = mailbox_codec::encode_mailbox_name(mailbox)?;
-    let selected = timeout(socket_timeout(server), session.select(wire_mailbox.as_str()))
-        .await
-        .map_err(|_| AppError::Timeout(format!("SELECT timed out for mailbox '{mailbox}'")))
-        .and_then(|r| {
-            r.map_err(|e| AppError::NotFound(format!("cannot select mailbox '{mailbox}': {e}")))
-        })?;
+    let selected = timeout(
+        socket_timeout(server),
+        session.select(wire_mailbox.as_str()),
+    )
+    .await
+    .map_err(|_| AppError::Timeout(format!("SELECT timed out for mailbox '{mailbox}'")))
+    .and_then(|r| {
+        r.map_err(|e| AppError::NotFound(format!("cannot select mailbox '{mailbox}': {e}")))
+    })?;
     selected
         .uid_validity
         .ok_or_else(|| AppError::Internal("mailbox missing UIDVALIDITY".to_owned()))
