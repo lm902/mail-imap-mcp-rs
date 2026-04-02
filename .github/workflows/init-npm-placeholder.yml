@@ -16,12 +16,12 @@ jobs:
     permissions:
       contents: read
     env:
-      NPM_PACKAGE_NAME: "@bradsjm/mail-imap-mcp-rs"
+      NPM_PACKAGE_NAME: "@lm902/mail-imap-mcp-rs"
       NPM_PLACEHOLDER_VERSION: "0.0.0"
       NPM_REGISTRY_URL: "https://registry.npmjs.org"
       PACKAGE_DESCRIPTION: "Placeholder for Trusted Publishing setup. This version contains no runtime code."
       PACKAGE_LICENSE: "MIT"
-      PACKAGE_REPOSITORY: "https://github.com/bradsjm/mail-imap-mcp-rs"
+      PACKAGE_REPOSITORY: "https://github.com/lm902/mail-imap-mcp-rs"
     steps:
       - name: Checkout
         uses: actions/checkout@v6
