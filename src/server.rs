@@ -492,28 +492,29 @@ impl MailImapServer {
             }
         };
 
-        let mailboxes = items
-            .into_iter()
-            .take(200)
-            .map(|item| {
-                let raw_name = item.name();
-                let name = match mailbox_codec::decode_mailbox_name(raw_name) {
-                    Ok(decoded) => decoded,
-                    Err(error) => {
-                        warn!(
-                            mailbox = raw_name,
-                            error = %error,
-                            "failed to decode mailbox name; using wire value"
-                        );
-                        raw_name.to_owned()
-                    }
-                };
-                MailboxInfo {
+        let mut mailboxes = Vec::new();
+        for item in items.into_iter().take(200) {
+            let raw_name = item.name();
+            match mailbox_codec::decode_mailbox_name(raw_name) {
+                Ok(name) => mailboxes.push(MailboxInfo {
                     name,
                     delimiter: item.delimiter().map(|d| d.to_string()),
+                }),
+                Err(error) => {
+                    issues.push(ToolIssue::from_error(
+                        "decode_mailbox_name",
+                        &AppError::Internal(format!(
+                            "cannot decode mailbox name '{raw_name}': {error}"
+                        )),
+                    ));
+                    warn!(
+                        mailbox = raw_name,
+                        error = %error,
+                        "failed to decode mailbox name; omitting mailbox"
+                    );
                 }
-            })
-            .collect::<Vec<_>>();
+            }
+        }
 
         let status = status_from_counts(issues.is_empty(), !mailboxes.is_empty());
         log_runtime_issues(
