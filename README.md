@@ -22,7 +22,7 @@ Choose an installation method based on your environment and preferences.
 Easiest method - no global install required.
 
 ```bash
-npx @bradsjm/mail-imap-mcp-rs@latest
+npx @lm902/mail-imap-mcp-rs@latest
 ```
 
 Supported npm/native targets:
@@ -33,7 +33,7 @@ Supported npm/native targets:
 Or install globally:
 
 ```bash
-npm install -g @bradsjm/mail-imap-mcp-rs
+npm install -g @lm902/mail-imap-mcp-rs
 mail-imap-mcp-rs
 ```
 
@@ -42,13 +42,13 @@ mail-imap-mcp-rs
 Install a pinned release directly from GitHub Releases:
 
 ```bash
-curl --proto '=https' --tlsv1.2 -LsSf https://github.com/bradsjm/mail-imap-mcp-rs/releases/download/v0.1.0/mail-imap-mcp-rs-installer.sh | sh
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/lm902/mail-imap-mcp-rs/releases/download/v0.1.0/mail-imap-mcp-rs-installer.sh | sh
 ```
 
 Safer alternative (download, inspect, then run):
 
 ```bash
-curl --proto '=https' --tlsv1.2 -LsSf -o mail-imap-mcp-rs-installer.sh https://github.com/bradsjm/mail-imap-mcp-rs/releases/download/v0.1.0/mail-imap-mcp-rs-installer.sh
+curl --proto '=https' --tlsv1.2 -LsSf -o mail-imap-mcp-rs-installer.sh https://github.com/lm902/mail-imap-mcp-rs/releases/download/v0.1.0/mail-imap-mcp-rs-installer.sh
 sh mail-imap-mcp-rs-installer.sh
 ```
 
@@ -57,8 +57,8 @@ sh mail-imap-mcp-rs-installer.sh
 Pull prebuilt multi-arch image from GHCR:
 
 ```bash
-docker pull ghcr.io/bradsjm/mail-imap-mcp-rs:latest
-docker run --rm -i --env-file .env ghcr.io/bradsjm/mail-imap-mcp-rs:latest
+docker pull ghcr.io/lm902/mail-imap-mcp-rs:latest
+docker run --rm -i --env-file .env ghcr.io/lm902/mail-imap-mcp-rs:latest
 ```
 
 Build locally:
@@ -89,7 +89,7 @@ Use this example MCP configuration and add your credentials:
   "mcpServers": {
     "server-name": {
       "command": "npx",
-      "args": ["-y", "@bradsjm/mail-imap-mcp-rs@latest"],
+      "args": ["-y", "@lm902/mail-imap-mcp-rs@latest"],
       "env": {
         "MAIL_IMAP_DEFAULT_HOST": "imap.gmail.com",
         "MAIL_IMAP_DEFAULT_USER": "your-email@gmail.com",
