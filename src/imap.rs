@@ -85,9 +85,14 @@ impl rustls::client::danger::ServerCertVerifier for NoCertificateVerification {
 ///
 /// Performs full connection sequence with timeouts:
 /// 1. TCP connect
-/// 2. TLS handshake with system root certificates
+/// 2. TLS handshake
 /// 3. Read IMAP greeting
 /// 4. LOGIN authentication
+///
+/// TLS verification behavior:
+/// - Default: validates certificate chain and hostname using bundled roots
+/// - If `MAIL_IMAP_ALLOW_INVALID_CERTS=true`: uses a test-only verifier that
+///   accepts invalid/self-signed certificates
 ///
 /// # Security
 ///
