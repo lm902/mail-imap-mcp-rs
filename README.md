@@ -1,5 +1,11 @@
 # mail-imap-mcp-rs
 
+## About this fork
+
+This fork exists to improve IMAP non-ASCII character handling.
+
+In this fork, the project has been prepared for practical use through safer handling of non-ASCII characters in IMAP protocol interactions.
+
 A secure, efficient Model Context Protocol (MCP) server for IMAP email access over stdio. Provides read/write operations on IMAP mailboxes with structured output, cursor-based pagination, and security-first design.
 
 ## Features
