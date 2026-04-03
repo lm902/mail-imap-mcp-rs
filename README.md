@@ -2,12 +2,10 @@
 
 ## About this fork
 
-This fork exists to provide a production-friendly distribution of `mail-imap-mcp-rs` and clearer operational documentation.
+This fork exists to improve IMAP non-ASCII character handling.
 
 In this fork, the project has been prepared for practical use via:
-- npm/NPX distribution (`@lm902/mail-imap-mcp-rs`)
-- Docker image publishing support
-- release installer flow and expanded docs for configuration, security, and tool contracts
+- safer handling of non-ASCII characters in IMAP protocol interactions
 
 A secure, efficient Model Context Protocol (MCP) server for IMAP email access over stdio. Provides read/write operations on IMAP mailboxes with structured output, cursor-based pagination, and security-first design.
 
