@@ -4,7 +4,7 @@ name: Initialize NPM Placeholder Package
 # Run this once to create a placeholder package for this repository.
 #
 # After it succeeds, configure Trusted Publishing on npmjs.com:
-#   Package Settings > Trusted Publisher > GitHub Actions > bradsjm/mail-imap-mcp-rs
+#   Package Settings > Trusted Publisher > GitHub Actions > lm902/mail-imap-mcp-rs
 
 on:
   workflow_dispatch: {}
